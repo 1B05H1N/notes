@@ -1,0 +1,327 @@
+https://www.udemy.com/course/intro-to-bug-bounty-by-nahamsec
+
+Insiders guide to ethical hacking and bug bounty hunting with Ben Sadeghipour (@NahamSec)
+
+--Open Redirect 
+
+Also known as Unvalidated Redirects and Forwards
+
+Unvalidated redirects and forwards are possible when a web application accepts untrusted input that could cause the web application to redirect the request to a URL contained within untrusted input. By modifying untrusted URL input to a malicious site, an attacker may successfully launch a phishing scam and steal user credentials.
+
+Because the server name in the modified link is identical to the original site, phishing attempts may have a more trustworthy appearance. Unvalidated redirect and forward attacks can also be used to maliciously craft a URL that would pass the application's access control check and then forward the attacker to privileged functions that they would normally not be able to access.
+-https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html
+
+Open redirects happen when the web application takes an untrusted input and redirects a user from the web application to an untrusted site or resource that will be used for malicious purposes. 
+
+Low impact unless being used to escalate with other vulnerabilities. 
+
+Think that a user shares link on a website, you click on the link and are forwarded to a malicious site. 
+
+Sometimes the application may have some security measures in place where the developers have defined a list of either trusted or untrusted resources. In some case, you may be able to bypass those protections.
+
+https://example.com/login/?nextPage=https://google.com
+(allowed)
+https://example.com/login/?nextPage=https://evilsite.com
+(not allowed)
+https://example.com/login/?nextPage=https://evilsite.com/?google.com
+(allowed)
+
+This may actually work because the filtering system might be looking for google.com in the string.
+
+Keep an eye out for 302 and a redirect in the URL/Path. Use url+path+valid domain + @ + site you want to redirect to to redirect a user to your site.
+
+--Cross-Site Scripting (XSS)
+Cross-Site Scripting (XSS) attacks are a type of injection, in which malicious scripts are injected into otherwise benign and trusted websites. XSS attacks occur when an attacker uses a web application to send malicious code, generally in the form of a browser side script, to a different end user. Flaws that allow these attacks to succeed are quite widespread and occur anywhere a web application uses input from a user within the output it generates without validating or encoding it.
+
+An attacker can use XSS to send a malicious script to an unsuspecting user. The end user’s browser has no way to know that the script should not be trusted, and will execute the script. Because it thinks the script came from a trusted source, the malicious script can access any cookies, session tokens, or other sensitive information retained by the browser and used with that site. These scripts can even rewrite the content of the HTML page. 
+-https://owasp.org/www-community/attacks/xss/#stored-and-reflected-xss-attacks
+
+XSS allows an attack to execute arbitrary client-side code on a victim's browser. XSS can be used for phishing, exfiltrating data, ATO, and more.
+
+How does it work? 
+
+An attacker inserts a malicious script (or a payload) into the victim's browser
+
+When the victim encounters the script it executes in the victim's browser. 
+
+A malicious payload is able to perform any action that the victim is able to perform. 
+
+If the victim has special privileges it can be a serious vulnerability. 
+
+Impact may depend on user permissions, for example; an administrator may be able to change user permissions or access FTP.
+
+Impact 
+
+Read, modify, delete content of a page
+Steal user cookies or session and gain access to their account
+Serve malicious content 
+
+-Reflected XSS 
+
+Payload is injected from victim's request. Victim must click a malicious link or navigate to an attacker-controlled property. 
+
+Reflected attacks are those where the injected script is reflected off the web server, such as in an error message, search result, or any other response that includes some or all of the input sent to the server as part of the request. Reflected attacks are delivered to victims via another route, such as in an e-mail message, or on some other website. When a user is tricked into clicking on a malicious link, submitting a specially crafted form, or even just browsing to a malicious site, the injected code travels to the vulnerable web site, which reflects the attack back to the user’s browser. The browser then executes the code because it came from a “trusted” server. Reflected XSS is also sometimes referred to as Non-Persistent or Type-II XSS
+-https://owasp.org/www-community/attacks/xss/#stored-and-reflected-xss-attacks
+
+-Stored XSS 
+
+Payload is stored server-side and can be triggered by a victim with no interaction outside of the application. 
+
+Stored attacks are those where the injected script is permanently stored on the target servers, such as in a database, in a message forum, visitor log, comment field, etc. The victim then retrieves the malicious script from the server when it requests the stored information. Stored XSS is also sometimes referred to as Persistent or Type-I XSS.
+-https://owasp.org/www-community/attacks/xss/#stored-and-reflected-xss-attacks
+
+-DOM XSS
+
+The vulnerability is in the client-side code vs the server-side. Injection is still typically from the victim's request. 
+
+DOM Based XSS (or as it is called in some texts, “type-0 XSS”) is an XSS attack wherein the attack payload is executed as a result of modifying the DOM “environment” in the victim’s browser used by the original client side script, so that the client side code runs in an “unexpected” manner. That is, the page itself (the HTTP response that is) does not change, but the client side code contained in the page executes differently due to the malicious modifications that have occurred in the DOM environment.
+
+This is in contrast to other XSS attacks (stored or reflected), wherein the attack payload is placed in the response page (due to a server side flaw).
+-https://owasp.org/www-community/attacks/DOM_Based_XSS
+
+Request 								Response					Explanation
+
+site.com/page?name=john					Hello, john					Normal
+site.com/page?name=<u>John</u>			Hello, <u>john</u>			No XSS
+site.com/page?name=<u>John</u>			Hello, John (underscored)	Possible XSS
+
+The payload is injected into the victim's request using the "name" parameter. In order for this to work, the victim must click this malicious link or navigate to an attacker-controlled property. https://example.com/page?param=<payload>.
+
+Best way to look for XSS is to pass HTML and see if it's rendered in the browser. If the HTML is rendered, then there may be XSS.
+
+-Stored XSS 
+
+Stored Cross-site Scripting (XSS) is the most dangerous type of Cross Site Scripting. Web applications that allow users to store data are potentially exposed to this type of attack. This chapter illustrates examples of stored cross site scripting injection and related exploitation scenarios.
+
+Stored XSS occurs when a web application gathers input from a user which might be malicious, and then stores that input in a data store for later use. The input that is stored is not correctly filtered. As a consequence, the malicious data will appear to be part of the web site and run within the user’s browser under the privileges of the web application. Since this vulnerability typically involves at least two requests to the application, this may also called second-order XSS.
+
+This vulnerability can be used to conduct a number of browser-based attacks including:
+
+    Hijacking another user’s browser
+    Capturing sensitive information viewed by application users
+    Pseudo defacement of the application
+    Port scanning of internal hosts (“internal” in relation to the users of the web application)
+    Directed delivery of browser-based exploits
+    Other malicious activities
+
+Stored XSS does not need a malicious link to be exploited. A successful exploitation occurs when a user visits a page with a stored XSS. The following phases relate to a typical stored XSS attack scenario:
+
+    Attacker stores malicious code into the vulnerable page
+    User authenticates in the application
+    User visits vulnerable page
+    Malicious code is executed by the user’s browser
+
+This type of attack can also be exploited with browser exploitation frameworks such as BeEF and XSS Proxy. These frameworks allow for complex JavaScript exploit development.
+
+Stored XSS is particularly dangerous in application areas where users with high privileges have access. When the administrator visits the vulnerable page, the attack is automatically executed by their browser. This might expose sensitive information such as session authorization tokens.
+-https://owasp.org/www-project-web-security-testing-guide/v41/4-Web_Application_Security_Testing/07-Input_Validation_Testing/02-Testing_for_Stored_Cross_Site_Scripting.html
+
+Also known as persistent XSS 
+
+It stores the payload in the database 
+The payload is reflected back to the user when visiting a particular page 
+One of the most famous stored XSS was in Tweetdeck.
+
+The payload is stored server-side and can be triggered by a victim without any interaction outside of using the application. 
+
+Another example was an XSS payload was inserted at dropbox.com as the filename and was later imported/shared via FB. 
+
+-DOM XSS
+
+DOM XSS happens when javascript reflects data from an attacker controlled resource (ex: from within the URL) and passes it into the a function later on. 
+
+Consider the following piece of code that could be exploited by linking the victim to the following URL:
+
+https://example.com/#send-transaction<div/class="header_wrap"><a/href=javascript:alert(0)><h1><pwn3d</h1></a><img/src=//unskid.me/dist/jesus.gif></div>
+
+DOM XSS is one of those things where you have to know JS for. 
+
+Open developer tools, edit HTML, navigate to the Elements> <body>, see if tag is rendered, pass <script>alert(1)</script>test123 under "<p class="text-center">" and then check if the alert was reflected in the page.
+
+-Cross-Site Request Forgery
+
+Cross-Site Request Forgery (CSRF) is a type of attack that occurs when a malicious web site, email, blog, instant message, or program causes a user's web browser to perform an unwanted action on a trusted site when the user is authenticated. A CSRF attack works because browser requests automatically include all cookies including session cookies. Therefore, if the user is authenticated to the site, the site cannot distinguish between legitimate requests and forged requests.
+
+The impact of a successful CSRF attack is limited to the capabilities exposed by the vulnerable application and privileges of the user. For example, this attack could result in a transfer of funds, changing a password, or making a purchase with the user's credentials. In effect, CSRF attacks are used by an attacker to make a target system perform a function via the victim's browser, without the victim's knowledge, at least until the unauthorized transaction has been committed.
+-https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+
+What is CSRF?
+
+A CSRF vulnerability allows an attacker to unknowingly perform state changes on a web application where the victim is authenticated. CSRF does not allow any theft of any data, since the attacker has no way to see the response from the webpage.
+
+No CSRF protection allows an attack to force our victim to make an action without validating the origin of the request.
+
+-Insecure Direct Object Reference 
+Insecure Direct Object References occur when an application provides direct access to objects based on user-supplied input. This will allow a malicious attack to access data belonging to other users by manipulating the request. 
+
+Retrieve Data
+Will allow you to retrieve data such as Personally identifiable information (PII), phone numbers, address, receipts/invoices, etc.
+
+Modify or Delete Data
+Allows you to modify someone else's information such as email addresses, passwords, account details, etc.
+
+Understand how the application works:
+-How does it fetch data
+-How does it create new data
+-How does it delete or modify data
+Look for any numerical IDs in requests
+Create two users in order to have accurate data (userID, object ID, etc.)
+Sometimes applications use encoding or weak encryption to obfuscate information such as the userID (e.g. base64 encoding)
+Automate using burp
+
+Sometimes applications use UUID's instead of numerical ID's. UUID's are unpredictable long strings. They do not protect against IDOR's but they do make it harder to exploit. Sometimes applications leak the UUID, on purpose or by accident. For example, when you visit another user's profile, they may have a profile photo that's store on the website in a folder with the same name as their UUID.
+
+-Local File Disclosure
+The File Disclosure vulnerability allows an attacker to include a file, using exploiting a "dynamic file read" mechanism implemented on the target application. The vulnerability occurs due to the use of user-supplied input without proper validation (OWASP).
+
+Allows an attacker to read configuration files on a host machine
+Allows reading of arbitrary files on the box (like /etc/passwd)
+Can lead to Information Disclosure (limited to host's root directory in some cases)
+
+It's not always easy to traverse out of the folder you're in, sometimes you have to traverse out of the current working directory
+
+Sometimes the application may expect an extension or will automatically add it to the end of the request
+
+This can be bypassed by adding a nullbyte (%00), in some cases by adding a "?", or the other characters, depending on how the application works
+
+Null byte injection (%00) or a ? mark, can be used to ignore the remainder of the string but we may have to deal with other limitations or filtering in place. 
+
+-SQL Injection
+
+A SQL injection attack consists of insertion or “injection” of a SQL query via the input data from the client to the application. A successful SQL injection exploit can read sensitive data from the database, modify database data (Insert/Update/Delete), execute administration operations on the database (such as shutdown the DBMS), recover the content of a given file present on the DBMS file system and in some cases issue commands to the operating system. SQL injection attacks are a type of injection attack, in which SQL commands are injected into data-plane input in order to affect the execution of predefined SQL commands.
+-https://owasp.org/www-community/attacks/SQL_Injection
+
+SQL stands for Structured Query Language
+It is a language used to communicate with relational databases
+Almost every single application that stores persistent data will utilize SQL in some way
+Follows a standard with different database management (DBMS) implementing their own features/variations
+
+A SQL injection vulnerability allows an attacker to potentially execute malicious queries. This could allow them to create, read, update, and delete records in a database. 
+
+One way to mitigate could be to separate user input data from SQL query logic. Use prepared statements (aka parameterized queries) to allow the DBMS to distinguish between code and data. 
+
+SQL Injection - Error Based
+You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\" at line 1
+
+Blind SQL Injection 
+
+Blind SQL Injection
+Description
+
+Blind SQL (Structured Query Language) injection is a type of SQL Injection attack that asks the database true or false questions and determines the answer based on the applications response. This attack is often used when the web application is configured to show generic error messages, but has not mitigated the code that is vulnerable to SQL injection.
+
+When an attacker exploits SQL injection, sometimes the web application displays error messages from the database complaining that the SQL Query’s syntax is incorrect. Blind SQL injection is nearly identical to normal SQL Injection, the only difference being the way the data is retrieved from the database. When the database does not output data to the web page, an attacker is forced to steal data by asking the database a series of true or false questions. This makes exploiting the SQL Injection vulnerability more difficult, but not impossible. 
+-https://owasp.org/www-community/attacks/Blind_SQL_Injection
+
+In many SQL dialects '--' (without the quote) is used for writing comments. Everything after the -- is ignored
+
+One of the best tools to look for SQL injections is SQLMAP
+
+One thing to remember is that you don't know where you are in the SQL query.
+
+Server-side request forgery (SSRF) vulnerabilities let an attacker send crafted requests from the back-end server of a vulnerable web application. Criminals usually use SSRF attacks to target internal systems that are behind firewalls and are not accessible from the external network. An attacker may also leverage SSRF to access services available through the loopback interface (127.0.0.1) of the exploited server.
+
+SSRF vulnerabilities occur when an attacker has full or partial control of the request sent by the web application. A common example is when an attacker can control the third-party service URL to which the web application makes a request.
+-https://www.acunetix.com/blog/articles/server-side-request-forgery-vulnerability/
+
+In a Server-Side Forgery (SSRF) attack, the attacker can abuse functionality on a the server to read or update internal resources. An SSRF vulnerability allows an attack to make requests originating from the server. 
+
+Blind SSRF - Allows to scan for accessible hosts and ports
+Full Response - Allows you to see the entire response from the server
+Limited or No Response - Shows a portion of the response like the title of the page or No Response or you have access to resources but can't see them directly
+
+Potential Blockers:
+Whitelisting - Only allows a few domain names to be used in the request
+Blacklisting - Block access to internal IP addresses, domains or keywords
+Restrict Content-Type, extensions, or characters - Only allows a particular file type
+No Response - You may not be able to see the response from the request
+
+Potential Solutions:
+Whitelisting - Finding an open redirect
+Blacklisting - Creating a custom CNAME and pointing it to our internal IP address on our target
+Restricted Content-Type, extensions, or characters - Manual fuzzing and creating a bypass
+No Response - JavaScript XHR request to retrieve file contents
+
+Things to keep in mind while fuzzing for SSRF:
+
+You are making a server side request
+You are browsing content that is rendering on the host machine
+There are different ways to look for content on localhost other than "localhost" or 127.0.0.1
+You may need to use an open redirect to redirect the machine to your destination host
+The current host may be able to communicate with other machines on the network (that may require being on corporate VPN)
+Make sure the request comes from the remote server and not your personal IP address
+
+TL;DR: You have a "browser" that's rendering web pages for you on the host machine
+
+-XML External Entity
+
+An XML External Entity attack is a type of attack against an application that parses XML input. This attack occurs when XML input containing a reference to an external entity is processed by a weakly configured XML parser. This attack may lead to the disclosure of confidential data, denial of service, server side request forgery, port scanning from the perspective of the machine where the parser is located, and other system impacts. 
+
+Impacts:
+Read local files on the host
+Access to local network via Server Side Request Forgery 
+
+You basically pass XML in a post request. By modifying our request and using the System entity we are able to read local files using a valid URI scheme (http:// or file://)
+
+In the case of blind XXE, you can rely on dtd files to exfiltrate data to your server.
+
+-Remote Command Execution
+Remote Command Execution (RCE) is a broad term that's applied to vulnerabilities that allows an attacker to execute arbitrary commands on the host operating system via the vulnerable application. This can also be done by injecting code into the application which could be leveraged to execute arbitrary OS commands.
+
+A vulnerable application will allow an attacker to leverage site functionality by adding OS commands to achieve RCE. Application will take the user input and execute at the OS level in the background.
+
+In addition to executing OS commands, an attacker may be able to inject code into the application, and leverage their code to execute arbitrary commands on the application OS. This can be done in different ways such as file upload, modifying site content, debug functionalities and more.
+
+-Testing File Uploads
+Uploaded files represent a significant risk to applications. The first step in many attacks is to get some code to the system to be attacked. Then the attack only needs to find a way to get the code executed. Using a file upload helps the attacker accomplish the first step in their attack/s. The consequences of the unrestricted file upload can vary, including complete system takeover, an overloaded file system or database, forwarding attacks to back-end systems, client-side attacks, or simple defacement. It depends on what the application does with the uploaded file, and especially where it is stored (OWASP).
+
+Unrestricted File Upload
+Upload a webshell and gain RCE
+RCE or XSS via filename
+XSS via file upload
+Path Traversal with ability to overwrite local files
+XXE if docx, pptx, xlsx, xml or similar files are allowed
+...it all depends on the application
+
+Reconnaissance
+
+Observation of target's infrastructure, assets, applications and their features.
+
+Asset Discovery: domain names, subdomains, IP addresses, Scanning for open ports
+Content Discovery: files or folders via brute force, hidden endpoints or functionality
+
+Recon is important because it allows you to extend your attack surface especially when it comes down to bug bounties for organizations like Google, Facebook, Verizon, Snapchat, or GM where they include all of their digital assets in their scope.
+
+Purpose: 
+A bigger attack surface
+Dev/Staging/QA environments
+Sensitive Information (API Documentation, Logs, Backups, etc)
+
+Recon - Asset Discovery
+
+Asset discovery consists of finding all the digital online assets owned by a particular company. For example: Google owns google.com, YouTube.com, nest.com (acquisition), and a ton of other assets that may be a part of their bug bounty program. You can usually find these through searching on Google, Crunchbase, or Wikipedia.
+
+Each of these assets have a domain and each domain may have its own subdomains. For example, Google.com has mail.google.com, drive.google.com, cloud.google.com, store.google.com, and more. 
+
+You can identify these domains passively through Google or other sources.
+
+site:uber.com -www
+
+Recon - Asset Discovery
+
+Services like crt.sh, censys.io, and shodan allow you to search through their data and look for certificates for a particular organization. If a subdomain doesn't have a SSL certificate, then we may have to rely on Google or rely on tools that enumerate subdomains via Brute-Force
+
+Certificate Transparency: censys.io, crt.sh, shodan.io, amass
+Brute-force: Use dictionary file to enumerate available subdomains with tools like massdns, amass
+
+Recon - Content Discovery
+
+Content discover helps us to find additional/sensitive folders, endpoints (files), documentation, or features that may not be directly accessible on the site. This also includes finding administration panels, files with sensitive debug/diagnosis information, api documentation, or hidden features available to users with higher privileges. This can be done by crawling the site using Burp Suite or by using other tools.
+
+Port scanning is another great way to extend your attack surface. Nmap or masscan allow you to scan for other open ports which may be running a web application. 
+
+Brute forcing and crawling the site may not always reveal everything because you may not know they exist, however, if you already have access to the application, you may be able to search through the javascript files to discover additional endpoints that may not be available to your user.
+
+Brute-force: dirsearch, ffuf, wfuzz, gobuster
+Javascript files: look for routes and understand how the endpoints work and fuzz them manually, JSparser, LinkFinder
+
