@@ -420,3 +420,230 @@ Misconfiguration of file permissions associated with cron jobs can lead to easy 
 
 If we can write to a program or script which gets run as part of a cron job, we can replace it with our own code. 
 
+
+PATH Environment Variable
+
+The crontab PATH environment variable is by default set to /usr/bin:/bin
+
+The PATH variable can be overwritten in the crontab file. 
+
+If a cron job program/script does not use an absolute path, and one of the PATH directories is writable by our user, we may be able to create a program/script with the same name as the cron job.
+
+Wildcards
+When a wildcard character (*) is provided to a command as part of an argument, the shell will first will first perform filename expansion (also known as globbing) on the wildcard. 
+
+This process replaces the wildcard with a space-separated list of the file and directory names in the current directory. 
+
+Any easy way to see this in action is to run the following command from your home directory:
+
+$ echo *
+
+Since filesystems in Linux are generally very permissive with filenames, and filename expansion happens before the command is executed, it is possible to pass command line options (e.g. -h, --help) to commands by creating files with these names. 
+
+The following commands should show how this works:
+
+$ ls *
+$ touch ./-l
+$ ls *
+
+Filenames are not simply restricted to simple options like -h or --help. 
+
+In fact we can create filenames that match complex options: --option=key=value
+
+GTFOBins (https://gtfobins.github.io) can help determine whether a command has command line options which will be useful for our purposes. 
+
+SUID/SGID Executables 
+
+SUID files get executed with the privileges of the file owner. 
+
+SGID files get executed with the privileges of the file group.
+
+If the file is owned by root, it gets executed with root privileges, and we may be able to use it to escalate privileges. 
+
+We can us the following find command to locate files with the SUID or SGID bits set:
+
+$ find / -type f -a \( -perm -u+s -o -perm -g+s \) -exec ls -l {} \; 2> /dev/null
+
+Shell Escape Sequences
+
+Just as we were able to use shell escape sequences with programs running via sudo, we can do the same with SUID/SGID files.
+
+A list of programs with their shell escape sequences can be found here: https://gtfobins.github.io/
+
+Refer to the previous section on shell escape sequences for how to use them.
+
+A Quick Word on LD_PRELOAD & LD_LIBRARY_PATH
+
+You may be thinking: why can't we just use the same LD_PRELOAD and LD_LIBRARY_PATH environment variable tricks we used with sudo privilege escalation?
+
+By default, this is disabled in Linux, due to the obvious security risk it presents!
+
+Both these environment variables get ignored when SUID files are executed. 
+
+Known Exploits
+
+Certain programs install SUID files to aid their operation. Just as services which run as root can have vulnerabilities we can exploit for a root shell, so too can these SUID files. 
+
+Exploits can be found using Searchsploit, Google, and GitHub, int eh same way we find exploits for Kernels and Services. 
+
+Shared Object Injection
+
+When a program is executed, it will try to load the shared objects it requires. 
+
+By using a program called strace, we can track these systems calls and determine whether any shared objects were not found. 
+
+If we can write to the location the program tries to open, we can create a shared object and spawn a root shell when it is loaded. 
+
+PATH Environment Variable 
+The PATH environment variable contains a list of directories where the shell should try to find programs. 
+
+If a program tries to execute another program, but only specifies the program name, rather than its full (absolute) path, the shell will search the PATH directories until it is found. 
+
+Since a user has full control over their PATH variable, we can tell the shell to first look for programs in a directory we can write to. 
+
+Finding Vulnerable Programs
+
+If a program tries to execute another program, the name of that program is likely embedded int he executable file as a string. 
+
+We can run strings on the executable file to find strings of characters. We can also use strace to see how the program is executing. Another program called ltrace may also be of use. 
+
+Running strings against a file:
+$ strings /path/to/file
+
+Running strace against a command:
+$ strace -v -f -e execve <command> 2>&1 | grep exec
+
+Running ltrace against a command:
+$ ltrace <command>
+
+Abusing Shell Features (#1)
+
+In some shells (notably Bash <4.2-048) it is possible to define user functions with an absolute path name. 
+
+These functions can be exported so that subprocess have access to them, and the functions can take precedence over the actual executable being called. 
+
+Abusing Shell Features (#2)
+
+Bash has a debugging mode which can be enabled with the -x command line option, or by modifying the SHELLOPTS environment variable to include xtrace. 
+
+By default, SHELLOPTS is read only, however the env command allows SHELLOPTS to be set. 
+
+When in debugging mode, Bash uses the environment variable PS4 to display an extra prompt for debug statements. This variable can included an embedded command, which will execute every time it is shown. 
+
+If an SUID file runs another program via BASH (e.g. by using system()) these environment variables can be inherited. 
+
+If an SUID file is being executed, this command will execute with the privileges of the file owner. 
+
+In Bash versions 4.4 and above, the PS4 environment variable is not inherited by shells running as root. 
+
+Passwords & Keys
+
+Passwords 
+
+While it might seem like a long shot, weak password storage and password re-use can be easy ways to escalate privileges. 
+
+While the root user's account password is hashed and stored securely in /etc/shadow, other passwords, such as those for services may be stored in plaintext in config files. 
+
+In the root user re-used their password for a service, that password may be found and used to switch to the root user. 
+
+History Files 
+
+History files record commands issued by users while they are using certain programs. 
+
+If a user types a password as part of a command, this password may get stored in a history file. 
+
+It is always a good idea to try switching to the root user with a discovered password. 
+
+Config Files 
+
+Many services and programs use configuration (config) files to store settings. 
+
+If a service needs to authenticate to something, it might store the credentials in a config file. 
+
+If these config files are accessible, and the passwords they store are reused by privileged users, we may be able to use it to log in as that user. 
+
+SSH Keys
+
+SSH keys can be used instead of passwords to authenticate users using SSH. 
+
+SSH keys come in pairs: one private key, and one public key. 
+
+The private key should always be kept secret. 
+
+If a user has stored their private key insecurely, anyone who can read the key may be able to log into their account using it. 
+
+See the weak SSH key demo in the Weak File Permissions lecture. 
+
+NFS
+
+NFS (Network File System) is a popular distributed file system. 
+
+NFS share are configured in the /etc/exports file.
+
+Remote users can mount shares, access, create, modify files. 
+
+By default, created files inherit the remote user's id and group id (as owner and group respectively), even if they don't exist on the NFS server. 
+
+Useful Commands
+
+Show the NFS server's export list:
+$ showmount -e <target>
+
+Similar Nmap script:
+
+$ nmap -sV -script=nfs-showmount <target>
+
+Mount an NFS share:
+
+$ mount -o rw,vers=2 <target>:<share> <local_directory>
+
+Root Squashing
+
+Root Squashing is how NFS prevents an obvious privilege escalation. 
+
+If the remote user is (or claims to be) root (uid=0), NFS will instead "squash" the user and treat them as if they are they are the "nobody" user, in the "nogroup" group. 
+
+While this behavior is default, it can be disabled!
+
+no_root_squash
+
+no_root_squash is an NFS configuration option which turns root squashing off. 
+
+When included in a writable share configuration, a remote user who identifies as "root" can create files on the NFS share as the local root user. 
+
+Privilege Escalation Strategy 
+
+Enumeration
+
+1. Check your user (id, whoami)
+2. Run Linux Smart Enumeration with increasing levels.
+3. Run LinEnum & other scripts as well!
+4. If your scripts are failing and you don't know why you can always run the manual commands from this course, and other Linux PrivEscalation cheatsheets online (e.g. https://blog.g0tmi1k.com/2011/08/basic-linux-privilege-escalation/)
+
+Strategy
+
+Spend some time and read over the results of your enumeration. 
+
+If Linux Smart Enumeration level 0 or 1 finds something, make a note of it. 
+
+Avoid rabbit holes by creating a checklist of things you need for the privilege escalation method to work. 
+
+Try things that don't have many steps first, e.g. Sudo, CronJobs, SUID files. 
+
+Have a good look at root processes, enumerate their versions and search for exploits. 
+
+Check for internal ports that you might be able to forward to your attacking machine. 
+
+If you still don't have root, re-read your full enumeration dumps and highlight anything that seems odd. 
+
+This might be a process or file name you aren't familiar with, an "unusual" filesystem configured (on Linux, or anything that isn't ext, swap, or tmpfs), or even a username. 
+
+At this stage you can also start to think about Kernel Exploits. 
+
+Don't Panic
+
+Privilege Escalation is tricky. 
+
+Practice makes perfect. 
+
+Remember: in an exam setting, it might take a while to find the method, but the exam is always intended to be completed within a timeframe. Keep searching!
